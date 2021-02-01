@@ -213,7 +213,7 @@ class MyCanvas(FloatLayout):
         Clock.schedule_once(partial(self.my_callback, "あ"), 12)
 
     def buttonClicked2(self):        # ボタンをクリック時
-        subprocess.Popen()
+        subprocess.Popen(r".\WS151\WS.EXE")
 
     def press_word(self,value):
         word = value.text

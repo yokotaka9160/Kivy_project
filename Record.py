@@ -1,13 +1,14 @@
 import pyaudio
 import wave
-import time
+import os
 
 class myaudio:
 
-    def __init__(self,name,date,word):
+    def __init__(self,name,date,word,recotime):
         self.name = name
         self.date = date
         self.word = word
+        self.recotime = recotime
 
     def pyrecord(self):
         a = pyaudio.PyAudio()
@@ -24,8 +25,11 @@ class myaudio:
         CHANNELS = 1             # monaural
         RATE = 48000             # sampling frequency [Hz]
 
-        time = 10 # record time [s] 5sなら0-4sデータ
-        output_path = f"./{self.name}_{self.date}_{self.word}.wav"
+        time = self.recotime # record time [s] 5sなら0-4sデータ
+        new_path = f"audio_data/{self.name}"
+        os.makedirs(new_path,exist_ok=True)
+
+        output_path = f"{new_path}/{self.name}_{self.date}_{self.word}.wav"
         print(f"output_path is {output_path}")
         p = pyaudio.PyAudio()
 
@@ -49,6 +53,13 @@ class myaudio:
         stream.stop_stream()
         stream.close()
         p.terminate()
+
+        num = 1
+        is_file = os.path.isfile(output_path)
+        while is_file:
+            output_path = f"{output_path}_ver{num}"
+            is_file = os.path.isfile(output_path)
+            num += 1
 
         wf = wave.open(output_path, 'wb')
         wf.setnchannels(CHANNELS)

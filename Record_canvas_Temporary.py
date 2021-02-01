@@ -18,6 +18,7 @@ from functools import partial
 from multiprocessing import Process
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from kivy.uix.button import Button
 
 #size_hint_y : y座標(0~2)
 # rgba : r(赤色),g（黄色）,b（青色）,a（透明度）
@@ -34,6 +35,7 @@ Builder.load_string("""
     day: day
     voice_word: voice_word
     c_display: c_display
+    word_buttons: word_buttons
     
     BoxLayout:
         orientation: 'vertical' # 'horizontal'だと列分割 verticalは行分割
@@ -43,15 +45,16 @@ Builder.load_string("""
             text: root.text
             font_size: 96
             size_hint_y: 1 
+            
         BoxLayout:
             orientation: 'horizontal'
 
             GridLayout:
-                rows:4
+                rows:3
                 GridLayout:
                     rows:3
                     cols:2
-                    size_hint_y: 0.4
+                    size_hint_y: 0.3
                     
                     Label:
                         text: "名前(ローマ字入力)"
@@ -88,30 +91,19 @@ Builder.load_string("""
                     size_hint_y: 0.2
                     id: voice_word
                     text: "発音言語"
-                Wordlist:
-                    id: wordlist    
+                StackLayout:
+                    size_hint_y: 0.5
+                    id: word_buttons
+                    orientation: 'lr-tb'
+
             Button:
                 size_hint_x: 0.5
                 id: button1_b
                 text: "録音START"
                 font_size: 24
-                # on_press: root.buttonClicked1_a()
-                on_press: root.buttonClicked1_b()
-            # GridLayout:
-            #     rows:2     
-            #     Button:
-            #         size_hint_x: 1
-            #         id: button1_a
-            #         text: "録音START"
-            #         font_size: 48
-            #         on_press: root.buttonClicked1_a()
-            # 
-            #     Button:
-            #         size_hint_x: 1
-            #         id: button1_b
-            #         text: "画面START"
-            #         font_size: 48
-            #         on_press: root.buttonClicked1_b()
+                on_press: root.buttonClicked1_a()
+                # on_press: root.buttonClicked1_b()
+
             Button:
                 size_hint_x: 0.4
                 id: button2
@@ -119,38 +111,7 @@ Builder.load_string("""
                 font_size: 48
                 on_press: root.buttonClicked2() #ボタンをクリックした時にpython側の関数を呼ぶ
         
-<Wordlist@GridLayout>: #Dynamic class
-    rows: 2
-    cols: 2
-    Button:
-        id: word1_btn
-        text: "あ い う え お"
-        on_press: app.root.press_word(self)
-    Button:
-        id: word2_btn
-        text: "か き く け こ"
-        on_press: app.root.press_word(self)
-    Button:
-        id: word3_btn
-        text: "さ し す せ そ"
-        on_press: app.root.press_word(self)
-    Button:
-        id: word4_btn
-        text: "た ち つ て と"
-        on_press: app.root.press_word(self)
-      
 """)
-# def display(disp_word,num):
-#     global display_word1
-#     word = "休止"
-#     if not num % 5 == 0:
-#         word_list = disp_word.split()
-#         try:
-#             ans = num//5
-#             word = str(word_list[ans])
-#         except:
-#             word = "何もありません"
-#     display_word1 = word
 
 
 class MyCanvas(FloatLayout):
@@ -162,46 +123,55 @@ class MyCanvas(FloatLayout):
     day = ObjectProperty(None)
     voice_word = ObjectProperty(None)
     c_display = ObjectProperty(None)
+    word_buttons = ObjectProperty()
 
     def __init__(self, **kwargs):
         super(MyCanvas, self).__init__(**kwargs)
         display_word1 = "STARTで録音開始"
         self.text = display_word1
-
-
-    def buttonClicked_thread(self):
-        s = Sample(self.voice_word.text)
-        # c1 = Clock.schedule_once(partial(self.my_callback, 1), 1)
-        # c2 = Clock.schedule_once(partial(self.my_callback, 2), 2)
-        # executor = ThreadPoolExecutor(max_workers=4)
-        # # executor.submit(self.buttonClicked_a2())
-        # executor.submit(c1)
-        # executor.submit(c2)
-        # executor.submit(s.testsample())
-        # executor.submit(self.buttonClicked_a1())
-        # loop = asyncio.get_event_loop()
-        # gather = asyncio.gather(
-        #     self.buttonClicked_a2(),
-        #     self.buttonClicked_a1(),
-        # )
-        # loop.run_until_complete(gather)
-
-        loop = asyncio.get_event_loop()
-        gather = asyncio.gather(
-            self.buttonClicked1_b(),
-            self.buttonClicked1_a(),
-            #s.testsample()
-        )
-        loop.run_until_complete(gather)
+        word_type = "2"  # 発音音声タイプを入力してください　1:モーラ　2:音声記号表
+        self.panda = False
+        if word_type == "1":
+            self.word_dict = {"モーラ（あ）": "あ い う え お や ゆ よ", "モーラ（か）": "か き く け こ きゃ きゅ きょ",
+                              "モーラ（が）": "が ぎ ぐ げ ご ぎゃ ぎゅ ぎょ",
+                              "モーラ（さ）": "さ し す せ そ しゃ しゅ しょ", "モーラ（ざ）": "ざ じ ず ぜ ぞ じゃ じゅ じょ",
+                              "モーラ（た）": "た ち つ て と ちゃ ちゅ ちょ", "モーラ（だ）": "だ で ど",
+                              "モーラ（な）": "な に ぬ ね の にゃ にゅ にょ ", "モーラ（は）": "は ひ ふ へ ほ ひゃ ひゅ ひょ ",
+                              "モーラ（ぱ）": "ぱ ぴ ぷ ぺ ぽ ぴゃ ぴゅ ぴょ",
+                              "モーラ（ま）": "ま み む め も みゃ みゅ みょ", "モーラ（ら）": "ら り る れ ろ りゃ りゅ りょ", "モーラ（わ）": "わ"}
+        elif word_type == "2":
+            self.word_dict = {"音記（あ）": "あ い う え お ", "音記（か）": "か き く け こ きゃ きゅ きょ",
+                              "音記（さ）": "さ し す せ そ しゃ しゅ しょ", "音記（た）": "た ち つ て と ちゃ ちゅ ちょ",
+                              "音記（な）": "な に ぬ ね の にゃ にゅ にょ ", "音記（は）": "は ひ ふ へ ほ ひゃ ひゅ ひょ ",
+                              "音記（ま）": "ま み む め も みゃ みゅ みょ", "音記（や）": "や　ゆ　よ", "音記（ら）": "ら り る れ ろ りゃ りゅ りょ",
+                              "音記（わ）": "わ", "音記（が）": "が ぎ ぐ げ ご ぎゃ ぎゅ ぎょ", "音記（ざ）": "ざ じ ず ぜ ぞ じゃ じゅ じょ",
+                              "音記（だ）": "だ で ど", "音記（ば）": "ば び ぶ べ ぼ びゃ びゅ びょ", "音記（ぱ）": "ぱ　ぴ　ぷ　ぺ　ぽ　ぴゃ　ぴゅ　ぴょ",
+                              }
+        word_list = list(self.word_dict.keys())
+        for v_word in word_list:
+            button = Button(text=v_word, size_hint=(.2, .35))
+            button.bind(on_press=self.press_word)
+            self.word_buttons.add_widget(button)
 
     def buttonClicked1_a(self):        # ボタンをクリック時
         name = self.name.text
         date = f"{self.year.text}{self.month.text}{self.day.text}"
         word = self.voice_word.text
+        if self.panda == True:
+            send_word = f"{self.voice_word.text}(文字あり)"
+        else:
+            send_word = f"{self.voice_word.text}(文字なし)"
+
         print(f"name is {self.name.text}")
         print(f"date is {date}")
-        max_time = 25
-        ma = myaudio(name, date, word)
+        print(len(list(self.word_dict[word])))
+        if len(list(self.word_dict[word])) == 5:
+            recotime = 25
+        elif len(list(self.word_dict[word])) == 1:
+            recotime = 15
+        else:
+            recotime = 45
+        ma = myaudio(name, date, send_word, recotime)
         ma.pyrecord()
 
     def buttonClicked1_b(self):
@@ -213,7 +183,7 @@ class MyCanvas(FloatLayout):
         Clock.schedule_once(partial(self.my_callback, "あ"), 12)
 
     def buttonClicked2(self):        # ボタンをクリック時
-        subprocess.Popen()
+        subprocess.Popen(r".\WS151\WS.EXE")
 
     def press_word(self,value):
         word = value.text
